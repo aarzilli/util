@@ -1,7 +1,22 @@
-SETUP
+=====
+INDEX
+=====
+
+- beck: small backup program using rsync
+- autotrash: automatically deletes files older than a set amount of time from the trash directory
+
+====
+BECK
+====
 - Compile beck.go and save it somewhere on your path
 - Create .config/beck/source a symbolic link to the directory to backup
 - Create .config/beck/backup a symbolic link to the backup directory (hopefully on a different volume from source)
 - Write in .config/beck/exclude the list of things you want to exclude from the backup
 - Write in .config/beck/include the list of things you want to include in the backup
 - run ./beck back to execute backup, ./beck check to check last backup
+
+=========
+AUTOTRASH
+=========
+
+- Just set autotrash to run periodically in crontab, the amount of time files are preserved can be changed by editing autotrash (it's 3 days)

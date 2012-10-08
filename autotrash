@@ -1,0 +1,102 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+
+use File::Path qw/remove_tree/;
+
+use constant NUMDAYS => 3;
+use constant LIMEN => NUMDAYS*3600*24;
+my %trash = ();
+
+sub config_file {
+	return (exists $ENV{XDG_CONFIG_HOME}) ?
+		"$ENV{XDG_CONFIG_HOME}/autotrash/rec" :
+		"$ENV{HOME}/.config/autotrash/rec"
+}
+
+sub home_trash_dir {
+	return (exists $ENV{XDG_DATA_HOME}) ?
+		"$ENV{XDG_DATA_HOME}/Trash/files/" :
+		"$ENV{HOME}/.local/share/Trash/files/";
+}
+
+sub mountpoint_user_trash_dir {
+	my ($mp) = @_;
+	return "$mp/.Trash-$</files/"
+}
+
+sub update_configuration {
+	my ($trash_files_dir) = @_;
+	opendir(my $d, $trash_files_dir) or die "Could not open trash: $!";
+	while (my $x = readdir($d)) {
+		next if $x =~ /^\./;
+		next if exists $trash{$x};
+		$trash{$x} = time;
+	}
+	closedir($d);
+
+	for my $x (keys %trash) {
+		unless (-e $trash_files_dir.$x) {
+			print "DELETED $x\n";
+			delete $trash{$x};
+		}
+	}
+}
+
+sub write_configuration {
+	open my $out, '>', config_file() or die "Could not write to configuration file ".config_file().": $!";
+	for my $x (keys %trash) {
+		print $out join("\t", $trash{$x}, $x)."\n";
+	}
+	close $out;
+}
+
+sub read_configuration {
+	#TODO:
+	# - check access to configuration file
+	# - create empty configuration file
+
+	open my $in, '<', config_file() or die "Could not read configuration file ".config_file().": $!";
+	while(<$in>) {
+		chomp;
+		my ($t, $x) = split /\t/, $_, 2;
+		$trash{$x} = $t;
+	}
+	close $in;
+}
+
+sub purge_old {
+	my ($trash_files_dir) = @_;
+	my $curtime = time;
+	for my $x (keys %trash) {
+		my $diff = $curtime - $trash{$x};
+		print "$diff\t$x\n";
+		next if $diff < LIMEN;
+		print "Deleting $x\n";
+		remove_tree($trash_files_dir.$x);
+		delete $trash{$x};
+	}
+}
+
+
+if ((@ARGV <= 0) || ($ARGV[0] eq "")) {
+	my $trash_files_dir = home_trash_dir();
+	read_configuration();
+	update_configuration($trash_files_dir);
+	print "Deleting stuff older than: ".LIMEN."\n";
+	purge_old($trash_files_dir);
+	write_configuration();
+} else {
+	my $trash_files_dir = mountpoint_user_trash_dir($ARGV[0]);
+	print "Checking $trash_files_dir\n";
+	update_configuration($trash_files_dir);
+	for my $k (keys %trash) {
+		if ((defined $ARGV[1]) && ($ARGV[1] eq "empty")) {
+			print "Deleting $k\n";
+			remove_tree($trash_files_dir.$k);
+			delete $trash{$k};
+		} else {
+			print "$k\n";
+		}
+	}
+}
