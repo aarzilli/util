@@ -2,7 +2,8 @@
 use warnings;
 use strict;
 
-use File::Path qw/remove_tree/;
+use File::Path qw/remove_tree mkpath/;
+use File::Basename;
 
 use constant NUMDAYS => 3;
 use constant LIMEN => NUMDAYS*3600*24;
@@ -52,9 +53,11 @@ sub write_configuration {
 }
 
 sub read_configuration {
-	#TODO:
-	# - check access to configuration file
-	# - create empty configuration file
+	unless (-r config_file()) {
+		mkpath(dirname(config_file()));
+		open my $out, '>', config_file() or die "Could not touch configuration file ".config_file().": $!";
+		close $out;
+	}
 
 	open my $in, '<', config_file() or die "Could not read configuration file ".config_file().": $!";
 	while(<$in>) {
