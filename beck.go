@@ -11,7 +11,7 @@ import (
 	"hash/crc32"
 )
 
-const DUMMY = true
+const DUMMY = false
 
 var sourcePath, backupPath, excludePath, includePath string
 var checkSuccess bool
