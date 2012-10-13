@@ -72,14 +72,17 @@ func startCommand() {
 		// wait either for the end of the process (waitChan) or a request to kill it
 		select {
 		case <-waitChan:
+			if *verbose {
+				log.Printf("Command executed")
+			} else {
+				fmt.Printf("Done\n")
+			}
 			break
 		case <-killChan:
 			if *verbose { log.Printf("Killing command") }
 			cmd.Process.Kill()
 			break
 		}
-
-		if *verbose { log.Printf("Command executed") }
 
 		doneTimeMutex.Lock()
 		doneTime = time.Now()
