@@ -22,9 +22,12 @@ var verbose = flag.Bool("v", false, "Verbose")
 
 var doneTimeMutex sync.Mutex
 var doneTime time.Time
+var running bool
 var killChan = make(chan bool, 0)
 
 func startCommand() {
+	running = true
+
 	if *verbose {
 		log.Printf("Running command: %v", args)
 	} else {
@@ -86,6 +89,7 @@ func startCommand() {
 
 		doneTimeMutex.Lock()
 		doneTime = time.Now()
+		running = false
 		doneTimeMutex.Unlock()
 	}()
 }
@@ -102,6 +106,7 @@ func canExecute() bool {
 	doneTimeMutex.Lock()
 	defer doneTimeMutex.Unlock()
 
+	if running { return false }
 	delayEnd := doneTime.Add(time.Duration(*delayPeriod) * time.Second)
 	if *verbose { log.Printf("Now: %v delayEnd: %v\n", time.Now(), delayEnd) }
 	return time.Now().After(delayEnd)
