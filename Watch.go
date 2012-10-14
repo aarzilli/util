@@ -25,14 +25,16 @@ var doneTime time.Time
 var running bool
 var killChan = make(chan bool, 0)
 
-func startCommand() {
+func startCommand(clean bool) {
 	running = true
 
 	if *verbose {
 		log.Printf("Running command: %v", args)
 	} else {
-		os.Stdout.Write([]byte{ 0x1b, '[', 'H' })
-		os.Stdout.Write([]byte{ 0x1b, '[', '2', 'J' })
+		if clean {
+			os.Stdout.Write([]byte{ 0x1b, '[', 'H' })
+			os.Stdout.Write([]byte{ 0x1b, '[', '2', 'J' })
+		}
 		fmt.Printf("Executing %s\n", strings.Join(args, " "))
 	}
 
@@ -63,7 +65,9 @@ func startCommand() {
 		waitChan := make(chan bool, 0)
 		go func() {
 			err := cmd.Wait()
-			if err != nil { log.Printf("Error executing command: %v", err) }
+			if *verbose {
+				if err != nil { log.Printf("Error executing command: %v", err) }
+			}
 
 			// signal the end of the process if anyone is listening
 			select {
@@ -139,28 +143,32 @@ func main() {
 	flag.Parse()
 	args = flag.Args()
 
-	inotifyFd, err := syscall.InotifyInit()
-	if err != nil { log.Fatalf("Inotify init failed: %v", err) }
-
-	registerDirectory(inotifyFd, ".", *recurse)
-
-	startCommand()
-
-	inotifyBuf := make([]byte, 1024*syscall.SizeofInotifyEvent + 16)
+	startCommand(false)
 
 	for {
-		n, err := syscall.Read(inotifyFd, inotifyBuf[0:])
-		if err == io.EOF { break }
-		if err != nil { log.Fatalf("Can not read inotify: %v", err) }
+		inotifyFd, err := syscall.InotifyInit()
+		if err != nil { log.Fatalf("Inotify init failed: %v", err) }
 
-		nameLen := uint32(0)
-		for offset := uint32(0); offset < uint32(n)-syscall.SizeofInotifyEvent; offset += syscall.SizeofInotifyEvent + nameLen {
-			event := (*syscall.InotifyEvent)(unsafe.Pointer(&inotifyBuf[offset]))
-			nameLen = event.Len
+		registerDirectory(inotifyFd, ".", *recurse)
 
-			if canExecute() { startCommand() }
+		inotifyBuf := make([]byte, 1024*syscall.SizeofInotifyEvent + 16)
+
+		for {
+			n, err := syscall.Read(inotifyFd, inotifyBuf[0:])
+			if err == io.EOF { break }
+			if err != nil {
+				log.Printf("Can not read inotify: %v", err)
+				break
+			}
+
+			nameLen := uint32(0)
+			for offset := uint32(0); offset < uint32(n)-syscall.SizeofInotifyEvent; offset += syscall.SizeofInotifyEvent + nameLen {
+				event := (*syscall.InotifyEvent)(unsafe.Pointer(&inotifyBuf[offset]))
+				nameLen = event.Len
+				if canExecute() { startCommand(true) }
+			}
 		}
-	}
 
-	syscall.Close(inotifyFd);
+		syscall.Close(inotifyFd);
+	}
 }
