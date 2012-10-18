@@ -6,7 +6,6 @@ import (
 	"log"
 	"fmt"
 	"io"
-	"unsafe"
 	"strings"
 	"os"
 	"os/exec"
@@ -134,6 +133,7 @@ func registerDirectory(inotifyFd int, dirname string, recurse int) {
 
 	for _, cur := range dir {
 		if cur.Mode().IsDir() {
+			if cur.Name()[0] == '.' { continue } // skip hidden directories
 			registerDirectory(inotifyFd, dirname + "/" + cur.Name(), recurse-1)
 		}
 	}
@@ -161,12 +161,16 @@ func main() {
 				break
 			}
 
+			if n > syscall.SizeofInotifyEvent {
+				if canExecute() { startCommand(true) }
+			}
+
+			/* no need to actually read notifications, it's ok as long as there is at least one
 			nameLen := uint32(0)
 			for offset := uint32(0); offset < uint32(n)-syscall.SizeofInotifyEvent; offset += syscall.SizeofInotifyEvent + nameLen {
 				event := (*syscall.InotifyEvent)(unsafe.Pointer(&inotifyBuf[offset]))
 				nameLen = event.Len
-				if canExecute() { startCommand(true) }
-			}
+			}*/
 		}
 
 		syscall.Close(inotifyFd);
