@@ -16,7 +16,8 @@ import (
 var args []string
 var shouldKill = flag.Bool("k", false, "If a change happens while the command is running kill the command instead of discarding the event")
 var delayPeriod = flag.Int("d", 3, "Number of seconds after running the command while events will be discarded (default 3)")
-var recurse = flag.Int("r", 0, "Recursively register subdirectories, set to the maximum recursion depth (default 0)")
+var recurse = flag.Bool("r", false, "Recursively register subdirectories")
+var depth = flag.Int("depth", 10, "Maximum recursion depth when recursion is enabled (default: 10)")
 var verbose = flag.Bool("v", false, "Verbose")
 
 var doneTimeMutex sync.Mutex
@@ -31,7 +32,6 @@ func startCommand(clean bool) {
 		log.Printf("Running command: %v", args)
 	} else {
 		if clean {
-			os.Stdout.Write([]byte{ 0x1b, '[', 'H' })
 			os.Stdout.Write([]byte{ 0x1b, '[', '2', 'J' })
 		}
 		fmt.Printf("Executing %s\n", strings.Join(args, " "))
@@ -94,6 +94,10 @@ func startCommand(clean bool) {
 		doneTime = time.Now()
 		running = false
 		doneTimeMutex.Unlock()
+
+		if !*verbose {
+			os.Stdout.Write([]byte{ 0x1b, '[', 'H' })
+		}
 	}()
 }
 
@@ -149,7 +153,10 @@ func main() {
 		inotifyFd, err := syscall.InotifyInit()
 		if err != nil { log.Fatalf("Inotify init failed: %v", err) }
 
-		registerDirectory(inotifyFd, ".", *recurse)
+		recdepth := 0
+		if *recurse { recdepth = *depth }
+
+		registerDirectory(inotifyFd, ".", recdepth)
 
 		inotifyBuf := make([]byte, 1024*syscall.SizeofInotifyEvent + 16)
 
