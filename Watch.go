@@ -15,7 +15,7 @@ import (
 
 var args []string
 var shouldKill = flag.Bool("k", false, "If a change happens while the command is running kill the command instead of discarding the event")
-var delayPeriod = flag.Int("d", 3, "Number of seconds after running the command while events will be discarded (default 3)")
+var delayPeriod = flag.Int("d", 1, "Number of seconds after running the command while events will be discarded (default 3)")
 var recurse = flag.Bool("r", false, "Recursively register subdirectories")
 var depth = flag.Int("depth", 10, "Maximum recursion depth when recursion is enabled (default: 10)")
 var verbose = flag.Bool("v", false, "Verbose")
@@ -171,13 +171,6 @@ func main() {
 			if n > syscall.SizeofInotifyEvent {
 				if canExecute() { startCommand(true) }
 			}
-
-			/* no need to actually read notifications, it's ok as long as there is at least one
-			nameLen := uint32(0)
-			for offset := uint32(0); offset < uint32(n)-syscall.SizeofInotifyEvent; offset += syscall.SizeofInotifyEvent + nameLen {
-				event := (*syscall.InotifyEvent)(unsafe.Pointer(&inotifyBuf[offset]))
-				nameLen = event.Len
-			}*/
 		}
 
 		syscall.Close(inotifyFd);
