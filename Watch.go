@@ -9,6 +9,7 @@ import (
 	"strings"
 	"os"
 	"os/exec"
+	"os/signal"
 	"time"
 	"sync"
 )
@@ -147,7 +148,24 @@ func main() {
 	flag.Parse()
 	args = flag.Args()
 
+	if len(args) <= 0 {
+		fmt.Fprintf(os.Stderr, "Must specify at least one argument to run:\n")
+		fmt.Fprintf(os.Stderr, "\t%s <options> <command> <arguments>...\n", os.Args[0])
+		flag.PrintDefaults()
+		return
+	}
+
 	startCommand(false)
+
+	usr1c := make(chan os.Signal)
+	signal.Notify(usr1c, syscall.SIGUSR1)
+
+	go func() {
+		for {
+			<- usr1c
+			if canExecute() { startCommand(true) }
+		}
+	}()
 
 	for {
 		inotifyFd, err := syscall.InotifyInit()
