@@ -8,10 +8,19 @@ sub usage {
 	exit 1;
 }
 
-usage() if not defined $ENV{JAVADOCS};
-usage() if not defined $ARGV[0];
+my $guess = 0;
+my $ARG = $ARGV[0];
+usage() if not defined $ARG;
 
-my @path = split /\./, $ARGV[0];
+if ($ARG eq "guess") {
+	$ARG = $ARGV[1];
+	$guess = 1;
+}
+
+usage() if not defined $ENV{JAVADOCS};
+usage() if not defined $ARG;
+
+my @path = split /\./, $ARG;
 
 my $prelast = $path[$#path-1];
 my $last = $path[$#path];
@@ -32,10 +41,33 @@ if (not defined $prelast) {
 	}
 }
 
+my $found = undef;
+my $wherefound = undef;
+
 for my $dir (split /:/, $ENV{JAVADOCS}) {
 	my @findout = grep { !/class-use/ } split /\n/, `find $dir -name '$theclass.html'`;
 	if (@findout > 0) {
-		print $findout[0]."\n";
+		$wherefound = $dir;
+		$found = $findout[0];
 		last;
 	}
 }
+
+if (not defined $found) {
+	print STDERR "Not found\n";
+	exit 1;
+}
+
+if (!$guess) {
+	print "$found\n";
+} else {
+	if (substr($found, 0, length($wherefound)) eq $wherefound) {
+		$found = substr($found, length($wherefound));
+		$found =~ s:^/::g;
+		$found =~ s:^api/::g;
+		$found =~ s:.html$::g;
+		$found =~ s:/:.:g;
+		print "$found\n";
+	}
+}
+
