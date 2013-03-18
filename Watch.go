@@ -66,7 +66,9 @@ func startCommand(clean bool) {
 		go func() {
 			err := cmd.Wait()
 			if *verbose {
-				if err != nil { log.Printf("Error executing command: %v", err) }
+				if err != nil {
+					log.Printf("Error executing command: %v", err)
+				}
 			}
 
 			// signal the end of the process if anyone is listening
@@ -77,18 +79,27 @@ func startCommand(clean bool) {
 		}()
 
 		// wait either for the end of the process (waitChan) or a request to kill it
-		select {
-		case <-waitChan:
-			if *verbose {
-				log.Printf("Command executed")
-			} else {
-				fmt.Printf("Done\n")
+		done := false
+		for !done {
+			select {
+			case <-waitChan:
+				if *verbose {
+					log.Printf("Command executed")
+				} else {
+					fmt.Printf("Done\n")
+				}
+				done = true
+				break
+			case <-killChan:
+				if *verbose { log.Printf("Killing command: %d", cmd.Process.Pid) }
+				/*if err := syscall.Kill(cmd.Process.Pid, 9); err != nil {
+					log.Printf("Error killing process")
+				}*/
+				if err := cmd.Process.Kill(); err != nil {
+					log.Printf("Error killing process")
+				}
+				break
 			}
-			break
-		case <-killChan:
-			if *verbose { log.Printf("Killing command") }
-			cmd.Process.Kill()
-			break
 		}
 
 		doneTimeMutex.Lock()
@@ -104,10 +115,19 @@ func startCommand(clean bool) {
 
 func canExecute() bool {
 	if *shouldKill {
+		doneTimeMutex.Lock()
+		wasRunning := running
+		doneTimeMutex.Unlock()
+
 		select {
 		case killChan <- true:
 		default:
 		}
+
+		if wasRunning {
+			time.Sleep(time.Duration(*delayPeriod) * time.Second)
+		}
+
 		return true
 	}
 
