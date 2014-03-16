@@ -7,6 +7,7 @@ use File::Basename;
 
 use constant NUMDAYS => 3;
 use constant LIMEN => NUMDAYS*3600*24;
+use constant MAX_HISTG_COLS => 60;
 my %trash = ();
 
 sub config_file {
@@ -81,6 +82,32 @@ sub purge_old {
 	}
 }
 
+sub print_histogram {
+	my $scale = 1.0;
+	my $n = scalar(keys %trash);
+	if ($n > MAX_HISTG_COLS) {
+		$scale = MAX_HISTG_COLS / ($n + 1);
+	}
+	my $offd = 0;
+	for (;;) {
+		my $off = ($offd * 24 * 3600);
+
+		my $curtime = time;
+		my $n = 0;
+		for my $k (keys %trash) {
+			my $d = ($curtime + $off) - $trash{$k};
+			$n++ if $d < LIMEN;
+		}
+
+		last if ($n <= 0);
+
+		printf "+%d ", $offd;
+		print "#" x $n;
+		print "\n";
+
+		$offd++;
+	}
+}
 
 if ((@ARGV <= 0) || ($ARGV[0] eq "")) {
 	my $trash_files_dir = home_trash_dir();
@@ -89,6 +116,11 @@ if ((@ARGV <= 0) || ($ARGV[0] eq "")) {
 	print "Deleting stuff older than: ".LIMEN."\n";
 	purge_old($trash_files_dir);
 	write_configuration();
+} elsif ((@ARGV >= 1) && ($ARGV[0] eq "histg")) {
+	my $trash_files_dir = home_trash_dir();
+	read_configuration();
+	update_configuration($trash_files_dir);
+	print_histogram();
 } else {
 	my $trash_files_dir = mountpoint_user_trash_dir($ARGV[0]);
 	print "Checking $trash_files_dir\n";
