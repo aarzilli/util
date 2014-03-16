@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"log"
 	"regexp"
-	"strconv"
+	"time"
 	"fmt"
 	"io"
 	"hash/crc32"
@@ -76,21 +76,22 @@ func lastBackupDir() (string, string) {
 		log.Fatalf("Can not read %s: %v\n", backupPath, err)
 	}
 
-	max := -1
+	now := time.Now().Format("20060102150405")
+	max := ""
 	re := regexp.MustCompile("^backup\\.(\\d+)$")
 	for _, backupDir := range backupDirs {
 		submatches := re.FindStringSubmatch(backupDir.Name())
 		if submatches == nil { continue }
-		cur, err := strconv.Atoi(submatches[1])
-		if err != nil { continue }
-		if cur > max { max = cur }
+		cur := submatches[1]
+		if len(cur) != len("20060102150405") { continue }
+		if submatches[1] > max { max = submatches[1] }
 	}
 
-	if max < 0 {
-		return "", fmt.Sprintf("%s/backup.0", backupPath)
+	if max == "" {
+		return "", fmt.Sprintf("%s/backup.%s", backupPath, now)
 	}
 
-	return fmt.Sprintf("%s/backup.%d", backupPath, max), fmt.Sprintf("%s/backup.%d", backupPath, max+1)
+	return fmt.Sprintf("%s/backup.%s", backupPath, max), fmt.Sprintf("%s/backup.%s", backupPath, now)
 }
 
 func cmdExec(args ...string) {
