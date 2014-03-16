@@ -1,0 +1,41 @@
+#!/bin/env perl
+use warnings;
+use strict;
+
+use constant CHECK_INTERVAL => 60;
+use constant ALERT_INTERVAL => 10;
+use constant FULL_FILE => "/sys/class/power_supply/BAT0/energy_full";
+use constant FULL_FILE2 => "/sys/class/power_supply/BAT0/charge_full";
+use constant NOW_FILE => "/sys/class/power_supply/BAT0/energy_now";
+use constant NOW_FILE2 => "/sys/class/power_supply/BAT0/charge_now";
+use constant STATUS_FILE => "/sys/class/power_supply/BAT0/status";
+use constant ALERT_COMMAND => "espeak -ven 'Low Battery'";
+
+sub slurp {
+	my ($path, $path2) = @_;
+	my $in;
+	if (!open($in, '<', $path)) {
+		open $in, '<', $path2 or die "Could not read $path / $path2: $!\n";
+	}
+	my $r = do { local $/; <$in> };
+	close $in;
+	$r =~ s/^\s+//g;
+	$r =~ s/\s+$//g;
+	return $r;
+}
+
+while (1) {
+	my $full = slurp(FULL_FILE, FULL_FILE2);
+	my $now = slurp(NOW_FILE, NOW_FILE2);
+	my $state = slurp(STATUS_FILE, STATUS_FILE);
+
+	my $perc = $now / $full;
+
+	if (($state ne "Discharging") || ($perc > 0.16)) {
+		sleep(CHECK_INTERVAL);
+	} else {
+		system ALERT_COMMAND;
+		sleep(ALERT_INTERVAL);
+	}
+
+}
