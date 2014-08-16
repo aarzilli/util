@@ -1,17 +1,17 @@
-package main;
+package main
 
 import (
-	"syscall"
 	"flag"
-	"log"
 	"fmt"
 	"io"
-	"strings"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
-	"time"
+	"strings"
 	"sync"
+	"syscall"
+	"time"
 )
 
 var args []string
@@ -33,7 +33,7 @@ func startCommand(clean bool) {
 		log.Printf("Running command: %v", args)
 	} else {
 		if clean {
-			os.Stdout.Write([]byte{ 0x1b, '[', '2', 'J' })
+			os.Stdout.Write([]byte{0x1b, '[', '2', 'J'})
 		}
 		fmt.Printf("Executing %s\n", strings.Join(args, " "))
 	}
@@ -91,7 +91,9 @@ func startCommand(clean bool) {
 				done = true
 				break
 			case <-killChan:
-				if *verbose { log.Printf("Killing command: %d", cmd.Process.Pid) }
+				if *verbose {
+					log.Printf("Killing command: %d", cmd.Process.Pid)
+				}
 				/*if err := syscall.Kill(cmd.Process.Pid, 9); err != nil {
 					log.Printf("Error killing process")
 				}*/
@@ -108,7 +110,7 @@ func startCommand(clean bool) {
 		doneTimeMutex.Unlock()
 
 		if !*verbose {
-			os.Stdout.Write([]byte{ 0x1b, '[', 'H' })
+			os.Stdout.Write([]byte{0x1b, '[', 'H'})
 		}
 	}()
 }
@@ -134,32 +136,46 @@ func canExecute() bool {
 	doneTimeMutex.Lock()
 	defer doneTimeMutex.Unlock()
 
-	if running { return false }
+	if running {
+		return false
+	}
 	delayEnd := doneTime.Add(time.Duration(*delayPeriod) * time.Second)
-	if *verbose { log.Printf("Now: %v delayEnd: %v\n", time.Now(), delayEnd) }
+	if *verbose {
+		log.Printf("Now: %v delayEnd: %v\n", time.Now(), delayEnd)
+	}
 	return time.Now().After(delayEnd)
 }
 
 func LsDir(dirname string) ([]os.FileInfo, error) {
 	dir, err := os.Open(dirname)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer dir.Close()
 	return dir.Readdir(-1)
 }
 
 func registerDirectory(inotifyFd int, dirname string, recurse int) {
-	_, err := syscall.InotifyAddWatch(inotifyFd, dirname, syscall.IN_CREATE | syscall.IN_DELETE | syscall.IN_CLOSE_WRITE)
-	if err != nil { log.Fatalf("Can not add %s to inotify: %v", dirname, err) }
+	_, err := syscall.InotifyAddWatch(inotifyFd, dirname, syscall.IN_CREATE|syscall.IN_DELETE|syscall.IN_CLOSE_WRITE)
+	if err != nil {
+		log.Fatalf("Can not add %s to inotify: %v", dirname, err)
+	}
 
-	if recurse <= 0 { return }
+	if recurse <= 0 {
+		return
+	}
 
 	dir, err := LsDir(dirname)
-	if err != nil { log.Fatalf("Can not read directory %s: %v", dirname, err) }
+	if err != nil {
+		log.Fatalf("Can not read directory %s: %v", dirname, err)
+	}
 
 	for _, cur := range dir {
 		if cur.Mode().IsDir() {
-			if cur.Name()[0] == '.' { continue } // skip hidden directories
-			registerDirectory(inotifyFd, dirname + "/" + cur.Name(), recurse-1)
+			if cur.Name()[0] == '.' {
+				continue
+			} // skip hidden directories
+			registerDirectory(inotifyFd, dirname+"/"+cur.Name(), recurse-1)
 		}
 	}
 }
@@ -182,35 +198,45 @@ func main() {
 
 	go func() {
 		for {
-			<- usr1c
-			if canExecute() { startCommand(true) }
+			<-usr1c
+			if canExecute() {
+				startCommand(true)
+			}
 		}
 	}()
 
 	for {
 		inotifyFd, err := syscall.InotifyInit()
-		if err != nil { log.Fatalf("Inotify init failed: %v", err) }
+		if err != nil {
+			log.Fatalf("Inotify init failed: %v", err)
+		}
 
 		recdepth := 0
-		if *recurse { recdepth = *depth }
+		if *recurse {
+			recdepth = *depth
+		}
 
 		registerDirectory(inotifyFd, ".", recdepth)
 
-		inotifyBuf := make([]byte, 1024*syscall.SizeofInotifyEvent + 16)
+		inotifyBuf := make([]byte, 1024*syscall.SizeofInotifyEvent+16)
 
 		for {
 			n, err := syscall.Read(inotifyFd, inotifyBuf[0:])
-			if err == io.EOF { break }
+			if err == io.EOF {
+				break
+			}
 			if err != nil {
 				log.Printf("Can not read inotify: %v", err)
 				break
 			}
 
 			if n > syscall.SizeofInotifyEvent {
-				if canExecute() { startCommand(true) }
+				if canExecute() {
+					startCommand(true)
+				}
 			}
 		}
 
-		syscall.Close(inotifyFd);
+		syscall.Close(inotifyFd)
 	}
 }
