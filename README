@@ -5,6 +5,7 @@ INDEX
 - beck: small backup program using rsync
 - Watch: executes a command every time a file is changed in the current directory
 - autotrash: automatically deletes files older than a set amount of time from the trash directory
+- ppwd: prints current working directory nicely
 
 ====
 BECK
