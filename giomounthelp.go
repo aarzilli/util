@@ -119,7 +119,7 @@ func main() {
 	r := only(namePred(func(name string) bool {
 		return name == "can_mount=1"
 	}), volumes(only(namePred(func(name string) bool {
-		return strings.Contains(name, "media-removable-symbolic")
+		return strings.Contains(name, "media-removable-symbolic") || strings.Contains(name, "drive-harddisk-usb-symbolic")
 	}), out)))
 
 	//fmt.Printf("%v\n", r)
