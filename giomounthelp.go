@@ -118,22 +118,24 @@ func main() {
 
 	r := only(namePred(func(name string) bool {
 		return name == "can_mount=1"
-	}), volumes(only(namePred(func(name string) bool {
-		return strings.Contains(name, "media-removable-symbolic") || strings.Contains(name, "drive-harddisk-usb-symbolic")
-	}), out)))
+	}), only(namePred(func(name string) bool {
+		return strings.Contains(name, "media-removable-symbolic") || strings.Contains(name, "drive-harddisk-usb-symbolic") || strings.Contains(name, "media-flash-symbolic")
+	}), volumes(out)))
 
 	//fmt.Printf("%v\n", r)
 
-	if len(r) != 1 {
+	if len(r) == 0 {
 		os.Exit(1)
 	}
 
-	dev := field(r[0], "unix-device")
-	fmt.Printf("%q\n", dev)
-	if dev != "" {
-		cmd := exec.Command("gio", "mount", "-d", dev)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		must(cmd.Run())
+	for i := range r {
+		dev := field(r[i], "unix-device")
+		fmt.Printf("%q\n", dev)
+		if dev != "" {
+			cmd := exec.Command("gio", "mount", "-d", dev)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			must(cmd.Run())
+		}
 	}
 }
